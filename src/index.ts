@@ -1,5 +1,5 @@
 import { Worker } from "@notionhq/workers";
-import * as j from "@notionhq/workers/schema-builder";
+import { j } from "@notionhq/workers/schema-builder";
 
 const worker = new Worker();
 export default worker;
@@ -10,7 +10,7 @@ worker.tool("sayHello", {
 	title: "Say Hello",
 	description: "Returns a friendly greeting for the given name.",
 	schema: j.object({
-		name: j.string().description("The name to greet."),
+		name: j.string().describe("The name to greet."),
 	}),
 	execute: ({ name }) => `Hello, ${name}!`,
 });

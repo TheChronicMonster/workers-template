@@ -3,7 +3,7 @@
  */
 
 import { Worker } from "@notionhq/workers";
-import * as j from "@notionhq/workers/schema-builder";
+import { j } from "@notionhq/workers/schema-builder";
 
 const worker = new Worker();
 export default worker;
@@ -15,8 +15,8 @@ worker.tool("myTool", {
 	// Use the schema builder to define input — it auto-sets required and
 	// additionalProperties, and provides type inference.
 	schema: j.object({
-		query: j.string().description("The search query").nullable(),
-		limit: j.number().description("Maximum number of results").nullable(),
+		query: j.string().describe("The search query").nullable(),
+		limit: j.number().describe("Maximum number of results").nullable(),
 	}),
 	// Optional: schema for the output the tool returns
 	outputSchema: j.object({
