@@ -1,0 +1,38 @@
+{
+  "_description": "JP Miller voice profile — extracted style rules, NOT content. Populate the 'samples' folder with 3-5 past blog posts, then run extraction to refine these directives.",
+  "_status": "PLACEHOLDER — refine after populating reference/samples/ with real blog posts",
+
+  "sentence_rhythm": {
+    "short_punch": "Use 3-7 word declarative sentences to punctuate key moments. One per paragraph maximum.",
+    "medium_flow": "Default sentence length: 12-18 words. Clear subject-verb-object with one qualifier.",
+    "long_build": "Occasional 20-25 word sentences to build tension or layer context. Never two in a row.",
+    "variation_rule": "Never write 3+ sentences of similar length consecutively. Alternate between short, medium, and long."
+  },
+
+  "paragraph_cadence": {
+    "length_variation": "Mix 1-sentence, 2-sentence, and 3-4 sentence paragraphs. Never more than 4 sentences.",
+    "section_endings": "End each section with a short, declarative statement. Period, not question mark.",
+    "opening_variety": "Vary paragraph openings: proper noun, action verb, specific detail, transition. Never start 2 consecutive paragraphs the same way."
+  },
+
+  "word_choice": {
+    "prefer_concrete": "Choose 'welded' over 'assembled,' 'sprinted' over 'moved quickly.' Specific verbs over adverb+generic verb.",
+    "favor_periods": "Prefer periods over semicolons. Prefer shorter sentences over longer ones joined by conjunctions.",
+    "minimize_qualifiers": "Cut 'very,' 'really,' 'quite,' 'somewhat.' If the adjective needs amplifying, choose a stronger adjective.",
+    "active_specificity": "Name the tool, the person, the place. 'Maya crashed during the render' not 'the software had issues.'"
+  },
+
+  "structural_patterns": {
+    "narrative_entry": "Open with a specific scene, action, or quote — never a generalization about the industry.",
+    "quote_integration": "Weave quotes into narrative flow. The sentence before a quote should create the context that makes the quote land.",
+    "tension_before_resolution": "Always present the constraint or problem BEFORE the achievement. Never lead with the win.",
+    "closing_style": "End pieces with forward motion — what happens next, what this enables — not a summary of what was said."
+  },
+
+  "anti_patterns": {
+    "no_throat_clearing": "Cut opening phrases like 'When it comes to,' 'In the world of,' 'It's no secret that.'",
+    "no_false_balance": "Don't hedge with 'While X is true, Y is also important.' Pick a lane.",
+    "no_list_exhaustion": "Don't enumerate every feature or benefit. Pick the 2-3 most vivid and let them represent the whole.",
+    "no_echo_conclusions": "The conclusion should add something new (a future implication, a lingering question) — never just restate the introduction."
+  }
+}

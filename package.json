@@ -3,7 +3,7 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"build": "tsc",
+		"build": "tsc && cp -r src/reference dist/",
 		"check": "tsc --noEmit"
 	},
 	"engines": {
@@ -16,6 +16,7 @@
 		"typescript": "^5.8.0"
 	},
 	"dependencies": {
+		"@anthropic-ai/sdk": "^0.78.0",
 		"@notionhq/workers": ">=0.0.0"
 	}
 }
