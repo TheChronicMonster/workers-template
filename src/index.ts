@@ -162,7 +162,7 @@ worker.tool("pullTranscript", {
 worker.tool("processTranscript", {
 	title: "Process Transcript",
 	description:
-		"Analyze a meeting transcript to extract themes, compelling quotes, conflict-resolution arcs, and suggest 2-3 blog angles with outline sketches. Uses the Researcher persona. Output feeds into generateDraft after you select/modify an outline.",
+		"Analyze a meeting transcript to extract story material, usable quotes (ranked), and 2-3 blog angle pitches with outlines. Output feeds into generateDraft after you select/modify an outline.",
 	schema: j.object({
 		transcript: j
 			.string()
@@ -183,7 +183,7 @@ worker.tool("processTranscript", {
 			`BLOG TYPE: ${blogType || "Interview"}`,
 			subjectName ? `SUBJECT: ${subjectName}` : "",
 			`\n## SOURCE TRANSCRIPT\n\n${transcript}`,
-			`\nAnalyze this transcript following your protocol. Extract all six areas: human interest, conflict-resolution map, transformation, authentic voice (candidate quotes), themes, and blog angles with outline sketches.`,
+			`\nAnalyze this transcript. Deliver: story material (what happened, key facts, specifics), usable quotes (ranked strongest to weakest with honest assessment), and 2-3 blog angles with outlines. Be direct about what's strong and what's thin.`,
 		]
 			.filter(Boolean)
 			.join("\n");
