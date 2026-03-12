@@ -12,24 +12,6 @@ set -euo pipefail
 OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
 
-prettify() {
-  python3 << 'PYEOF'
-import sys, json
-data = sys.stdin.read().strip()
-try:
-    decoded = json.loads(data)
-    if isinstance(decoded, str):
-        print(decoded)
-    else:
-        print(data)
-except (json.JSONDecodeError, ValueError):
-    if data.startswith('"') and data.endswith('"'):
-        data = data[1:-1]
-    data = data.replace('\\n', '\n').replace('\\t', '\t').replace('\\"', '"')
-    print(data)
-PYEOF
-}
-
 SUBJECT_NAME="${1:-}"
 CTA_FOCUS="${2:-combined}"
 
@@ -67,9 +49,9 @@ echo ""
 
 ntn workers exec generateDraft $LOCAL_FLAG \
   -d "{\"transcript\": $TRANSCRIPT_JSON, \"outline\": $OUTLINE_JSON, \"subjectName\": $SUBJECT_JSON, \"blogType\": null, \"ctaFocus\": $CTA_JSON}" \
-  | prettify > "$OUTPUT_DIR/04-draft.txt"
+  > "$OUTPUT_DIR/04-draft.txt"
+python3 prettify-files.py "$OUTPUT_DIR/04-draft.txt"
 
-echo "Draft saved to $OUTPUT_DIR/04-draft.txt"
 echo ""
 echo "============================================"
 echo "Review the draft in $OUTPUT_DIR/04-draft.txt"

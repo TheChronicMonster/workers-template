@@ -10,24 +10,6 @@ set -euo pipefail
 OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
 
-prettify() {
-  python3 << 'PYEOF'
-import sys, json
-data = sys.stdin.read().strip()
-try:
-    decoded = json.loads(data)
-    if isinstance(decoded, str):
-        print(decoded)
-    else:
-        print(data)
-except (json.JSONDecodeError, ValueError):
-    if data.startswith('"') and data.endswith('"'):
-        data = data[1:-1]
-    data = data.replace('\\n', '\n').replace('\\t', '\t').replace('\\"', '"')
-    print(data)
-PYEOF
-}
-
 SUBJECT_NAME="${1:-}"
 SUBJECT_ROLE="${2:-}"
 
@@ -52,15 +34,15 @@ fi
 echo "=== Stage 4a: Prep Workfront ==="
 ntn workers exec prepWorkfront $LOCAL_FLAG \
   -d "{\"blogPost\": $BLOG_JSON}" \
-  | prettify > "$OUTPUT_DIR/05-workfront.txt"
-echo "Workfront package saved to $OUTPUT_DIR/05-workfront.txt"
+  > "$OUTPUT_DIR/05-workfront.txt"
+python3 prettify-files.py "$OUTPUT_DIR/05-workfront.txt"
 echo ""
 
 echo "=== Stage 4b: Generate Social Posts ==="
 ntn workers exec generateSocialPosts $LOCAL_FLAG \
   -d "{\"blogPost\": $BLOG_JSON, \"subjectName\": $SUBJECT_JSON, \"subjectRole\": $ROLE_JSON}" \
-  | prettify > "$OUTPUT_DIR/06-social-posts.txt"
-echo "Social posts saved to $OUTPUT_DIR/06-social-posts.txt"
+  > "$OUTPUT_DIR/06-social-posts.txt"
+python3 prettify-files.py "$OUTPUT_DIR/06-social-posts.txt"
 echo ""
 
 echo "============================================"

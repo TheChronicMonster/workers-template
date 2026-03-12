@@ -2,34 +2,14 @@
 set -euo pipefail
 
 # Blog Generation Pipeline
-# Usage: ./pipeline.sh [transcript_id]
+# Usage: ./pipeline.sh [transcript_id] [subject_name]
 #
-# Runs the full pipeline: pull → process → (pause for outline review) → generate draft
-# Each stage saves output to output/ so you can review between steps.
-# Run with --local flag for local execution (uses .env for API keys).
+# Runs: pull transcript → process with researcher → pause for outline review
+# Each stage saves to output/. Prettified automatically.
 
 TRANSCRIPT_ID="${1:-}"
 OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
-
-# Decode JSON-encoded strings (escaped \n) into readable text.
-prettify() {
-  python3 << 'PYEOF'
-import sys, json
-data = sys.stdin.read().strip()
-try:
-    decoded = json.loads(data)
-    if isinstance(decoded, str):
-        print(decoded)
-    else:
-        print(data)
-except (json.JSONDecodeError, ValueError):
-    if data.startswith('"') and data.endswith('"'):
-        data = data[1:-1]
-    data = data.replace('\\n', '\n').replace('\\t', '\t').replace('\\"', '"')
-    print(data)
-PYEOF
-}
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -37,18 +17,17 @@ echo "=== Stage 1: Pull Transcript ==="
 if [ -n "$TRANSCRIPT_ID" ]; then
   ntn workers exec pullTranscript $LOCAL_FLAG \
     -d "{\"transcriptId\": \"$TRANSCRIPT_ID\"}" \
-    | prettify > "$OUTPUT_DIR/01-transcript.txt"
+    > "$OUTPUT_DIR/01-transcript.txt"
 else
   ntn workers exec pullTranscript $LOCAL_FLAG \
     -d '{"transcriptId": null}' \
-    | prettify > "$OUTPUT_DIR/01-transcript.txt"
+    > "$OUTPUT_DIR/01-transcript.txt"
 fi
-echo "Transcript saved to $OUTPUT_DIR/01-transcript.txt"
+python3 prettify-files.py "$OUTPUT_DIR/01-transcript.txt"
 echo ""
 
 echo "=== Stage 2: Process Transcript ==="
 TRANSCRIPT=$(cat "$OUTPUT_DIR/01-transcript.txt")
-# Escape for JSON
 TRANSCRIPT_JSON=$(printf '%s' "$TRANSCRIPT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
 
 SUBJECT_NAME="${2:-}"
@@ -56,13 +35,13 @@ if [ -n "$SUBJECT_NAME" ]; then
   SUBJECT_JSON=$(printf '%s' "$SUBJECT_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
   ntn workers exec processTranscript $LOCAL_FLAG \
     -d "{\"transcript\": $TRANSCRIPT_JSON, \"subjectName\": $SUBJECT_JSON, \"blogType\": null}" \
-    | prettify > "$OUTPUT_DIR/02-research.txt"
+    > "$OUTPUT_DIR/02-research.txt"
 else
   ntn workers exec processTranscript $LOCAL_FLAG \
     -d "{\"transcript\": $TRANSCRIPT_JSON, \"blogType\": null, \"subjectName\": null}" \
-    | prettify > "$OUTPUT_DIR/02-research.txt"
+    > "$OUTPUT_DIR/02-research.txt"
 fi
-echo "Research saved to $OUTPUT_DIR/02-research.txt"
+python3 prettify-files.py "$OUTPUT_DIR/02-research.txt"
 echo ""
 
 echo "============================================"
