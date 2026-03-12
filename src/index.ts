@@ -3,39 +3,14 @@ import { j } from "@notionhq/workers/schema-builder";
 import { callClaude } from "./lib/claude.js";
 import {
 	RESEARCHER_SYSTEM,
-	WRITER_SYSTEM,
+	WRITER_SIMPLE_SYSTEM,
 	MECHANICAL_EDITOR_SYSTEM,
-	VOICE_EDITOR_SYSTEM,
-	FINAL_EDITOR_SYSTEM,
 } from "./prompts/personas.js";
 import { SOCIAL_POSTS_SYSTEM } from "./prompts/social-personas.js";
 import { WRITING_RULES } from "./lib/writing-rules.js";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-const voiceProfile = JSON.parse(
-	readFileSync(join(__dirname, "reference", "voice-profile.json"), "utf-8"),
-) as Record<string, unknown>;
 
 const worker = new Worker();
 export default worker;
-
-/**
- * Build the Voice Editor prompt with the loaded voice profile injected.
- */
-function getVoiceEditorPrompt(): string {
-	const profileRules = Object.entries(voiceProfile)
-		.filter(([key]) => !key.startsWith("_"))
-		.map(([category, rules]) => {
-			const items = Object.entries(rules as Record<string, string>)
-				.map(([name, rule]) => `  - ${name}: ${rule}`)
-				.join("\n");
-			return `${category}:\n${items}`;
-		})
-		.join("\n\n");
-
-	return VOICE_EDITOR_SYSTEM.replace("{VOICE_PROFILE}", profileRules);
-}
 
 // ---------------------------------------------------------------------------
 // 1. pullTranscript — Fetch transcript from Fireflies via GraphQL API
@@ -239,78 +214,33 @@ worker.tool("generateDraft", {
 					? WRITING_RULES.cta.nvidiaFocus
 					: WRITING_RULES.cta.combined;
 
-		// ── STAGE 1: Researcher — extract story foundation ──
-		const researchPrompt = [
-			`BLOG TYPE: ${type}`,
-			`SUBJECT: ${subject}`,
-			`\n## SOURCE TRANSCRIPT\n\n${transcript}`,
-			`\nAnalyze this transcript. Extract: human interest moments, conflict-resolution arc, transformation (before/after), 5-8 candidate quotes with speaker attribution, 2-3 universal themes, and the strongest thesis angle for a blog post.`,
-		].join("\n");
-
-		const research = await callClaude(RESEARCHER_SYSTEM, [
-			{ role: "user", content: researchPrompt },
-		]);
-
-		// ── STAGE 2: Writer — write draft from research + outline ──
-		const draftPrompt = [
-			`## RESEARCH FOUNDATION\n\n${research}`,
-			outline ? `\n## APPROVED OUTLINE\n\n${outline}` : "",
-			`\n## SOURCE TRANSCRIPT\n\n${transcript}`,
-			`\n## INSTRUCTIONS`,
-			`Write a complete Dell/NVIDIA blog post about ${subject}.`,
+		// ── CALL 1: Write it ──
+		const writePrompt = [
+			`Write a Dell blog post about ${subject}.`,
 			`Blog type: ${type}.`,
-			`Use the research foundation for quotes, details, and story arc.`,
-			outline
-				? `Follow the approved outline structure.`
-				: `Choose the strongest thesis angle identified in the research.`,
-			`CTA direction: ${cta}`,
-			`Remember: 600-750 words, 9-word max title, 3-5 quotes, AP Style, no banned language.`,
-			`Output ONLY the blog post. Title first, then content.`,
+			outline ? `\n## OUTLINE\n\n${outline}` : "",
+			`\n## SOURCE TRANSCRIPT\n\n${transcript}`,
+			`\nCTA direction: ${cta}`,
 		]
 			.filter(Boolean)
 			.join("\n");
 
-		const draft = await callClaude(WRITER_SYSTEM, [
-			{ role: "user", content: draftPrompt },
+		const draft = await callClaude(WRITER_SIMPLE_SYSTEM, [
+			{ role: "user", content: writePrompt },
 		]);
 
-		// ── STAGE 3: Mechanical Editor — rule enforcement ──
-		const mechanicalPrompt = [
+		// ── CALL 2: Clean it ──
+		const cleanPrompt = [
 			`## DRAFT TO CLEAN\n\n${draft}`,
 			`\nPerform your mechanical edit pass. Fix all rule violations: banned language, em dashes, AP Style, quote discipline, title word count, tech specificity, prohibited patterns.`,
 			`Output the complete cleaned blog post, then your edit notes.`,
 		].join("\n");
 
 		const cleaned = await callClaude(MECHANICAL_EDITOR_SYSTEM, [
-			{ role: "user", content: mechanicalPrompt },
+			{ role: "user", content: cleanPrompt },
 		]);
 
-		// ── STAGE 4: Voice & Rhythm Editor — cadence and AIism removal ──
-		const voicePrompt = [
-			`## BLOG POST (mechanically cleaned)\n\n${cleaned}`,
-			`\nApply your voice and rhythm edits. Fix AIisms, enforce cadence variation, ensure human feel.`,
-			`Do NOT reintroduce banned language or break AP Style rules.`,
-			`Output the complete blog post with voice adjustments, then your edit notes.`,
-		].join("\n");
-
-		const voiced = await callClaude(getVoiceEditorPrompt(), [
-			{ role: "user", content: voicePrompt },
-		]);
-
-		// ── STAGE 5: Final Editor — holistic review ──
-		const finalPrompt = [
-			`## BLOG POST (after mechanical + voice editing)\n\n${voiced}`,
-			`\n## ORIGINAL TRANSCRIPT (for quote verification)\n\n${transcript}`,
-			`\n## RESEARCH FOUNDATION (for fact checking)\n\n${research}`,
-			`\nPerform your final editorial review. Check thesis progression, story flow, quote verification against transcript, corporate contamination, section coherence, subheading discipline, and CTA integration.`,
-			`Output the complete publication-ready blog post, followed by your editorial notes.`,
-		].join("\n");
-
-		const final = await callClaude(FINAL_EDITOR_SYSTEM, [
-			{ role: "user", content: finalPrompt },
-		]);
-
-		return final;
+		return cleaned;
 	},
 });
 
