@@ -11,7 +11,21 @@ OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
 
 prettify() {
-  python3 -c 'import sys,json; data=sys.stdin.read().strip(); print(json.loads(data) if data.startswith("\"") else data)'
+  python3 << 'PYEOF'
+import sys, json
+data = sys.stdin.read().strip()
+try:
+    decoded = json.loads(data)
+    if isinstance(decoded, str):
+        print(decoded)
+    else:
+        print(data)
+except (json.JSONDecodeError, ValueError):
+    if data.startswith('"') and data.endswith('"'):
+        data = data[1:-1]
+    data = data.replace('\\n', '\n').replace('\\t', '\t').replace('\\"', '"')
+    print(data)
+PYEOF
 }
 
 SUBJECT_NAME="${1:-}"
