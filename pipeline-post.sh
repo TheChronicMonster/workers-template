@@ -10,6 +10,10 @@ set -euo pipefail
 OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
 
+prettify() {
+  python3 -c 'import sys,json; data=sys.stdin.read().strip(); print(json.loads(data) if data.startswith("\"") else data)'
+}
+
 SUBJECT_NAME="${1:-}"
 SUBJECT_ROLE="${2:-}"
 
@@ -34,14 +38,14 @@ fi
 echo "=== Stage 4a: Prep Workfront ==="
 ntn workers exec prepWorkfront $LOCAL_FLAG \
   -d "{\"blogPost\": $BLOG_JSON}" \
-  > "$OUTPUT_DIR/05-workfront.txt"
+  | prettify > "$OUTPUT_DIR/05-workfront.txt"
 echo "Workfront package saved to $OUTPUT_DIR/05-workfront.txt"
 echo ""
 
 echo "=== Stage 4b: Generate Social Posts ==="
 ntn workers exec generateSocialPosts $LOCAL_FLAG \
   -d "{\"blogPost\": $BLOG_JSON, \"subjectName\": $SUBJECT_JSON, \"subjectRole\": $ROLE_JSON}" \
-  > "$OUTPUT_DIR/06-social-posts.txt"
+  | prettify > "$OUTPUT_DIR/06-social-posts.txt"
 echo "Social posts saved to $OUTPUT_DIR/06-social-posts.txt"
 echo ""
 

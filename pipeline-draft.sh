@@ -12,6 +12,10 @@ set -euo pipefail
 OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
 
+prettify() {
+  python3 -c 'import sys,json; data=sys.stdin.read().strip(); print(json.loads(data) if data.startswith("\"") else data)'
+}
+
 SUBJECT_NAME="${1:-}"
 CTA_FOCUS="${2:-combined}"
 
@@ -49,7 +53,7 @@ echo ""
 
 ntn workers exec generateDraft $LOCAL_FLAG \
   -d "{\"transcript\": $TRANSCRIPT_JSON, \"outline\": $OUTLINE_JSON, \"subjectName\": $SUBJECT_JSON, \"blogType\": null, \"ctaFocus\": $CTA_JSON}" \
-  > "$OUTPUT_DIR/04-draft.txt"
+  | prettify > "$OUTPUT_DIR/04-draft.txt"
 
 echo "Draft saved to $OUTPUT_DIR/04-draft.txt"
 echo ""

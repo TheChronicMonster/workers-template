@@ -12,17 +12,23 @@ TRANSCRIPT_ID="${1:-}"
 OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
 
+# Decode JSON-encoded strings (escaped \n) into readable text.
+# Passes through unchanged if output isn't JSON-quoted.
+prettify() {
+  python3 -c 'import sys,json; data=sys.stdin.read().strip(); print(json.loads(data) if data.startswith("\"") else data)'
+}
+
 mkdir -p "$OUTPUT_DIR"
 
 echo "=== Stage 1: Pull Transcript ==="
 if [ -n "$TRANSCRIPT_ID" ]; then
   ntn workers exec pullTranscript $LOCAL_FLAG \
     -d "{\"transcriptId\": \"$TRANSCRIPT_ID\"}" \
-    > "$OUTPUT_DIR/01-transcript.txt"
+    | prettify > "$OUTPUT_DIR/01-transcript.txt"
 else
   ntn workers exec pullTranscript $LOCAL_FLAG \
     -d '{"transcriptId": null}' \
-    > "$OUTPUT_DIR/01-transcript.txt"
+    | prettify > "$OUTPUT_DIR/01-transcript.txt"
 fi
 echo "Transcript saved to $OUTPUT_DIR/01-transcript.txt"
 echo ""
@@ -37,11 +43,11 @@ if [ -n "$SUBJECT_NAME" ]; then
   SUBJECT_JSON=$(printf '%s' "$SUBJECT_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
   ntn workers exec processTranscript $LOCAL_FLAG \
     -d "{\"transcript\": $TRANSCRIPT_JSON, \"subjectName\": $SUBJECT_JSON, \"blogType\": null}" \
-    > "$OUTPUT_DIR/02-research.txt"
+    | prettify > "$OUTPUT_DIR/02-research.txt"
 else
   ntn workers exec processTranscript $LOCAL_FLAG \
     -d "{\"transcript\": $TRANSCRIPT_JSON, \"blogType\": null, \"subjectName\": null}" \
-    > "$OUTPUT_DIR/02-research.txt"
+    | prettify > "$OUTPUT_DIR/02-research.txt"
 fi
 echo "Research saved to $OUTPUT_DIR/02-research.txt"
 echo ""
