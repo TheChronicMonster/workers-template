@@ -7,6 +7,7 @@ import {
 	MECHANICAL_EDITOR_SYSTEM,
 	VOICE_RHYTHM_EDITOR_SYSTEM,
 	FINAL_EDITOR_SYSTEM,
+	REVISION_EDITOR_SYSTEM,
 } from "./prompts/personas.js";
 import { SOCIAL_POSTS_SYSTEM } from "./prompts/social-personas.js";
 import { WRITING_RULES } from "./lib/writing-rules.js";
@@ -458,6 +459,46 @@ If working from a transcript, pay attention to:
 			.join("\n");
 
 		return await callClaude(systemPrompt, [
+			{ role: "user", content: userMessage },
+		]);
+	},
+});
+
+// ---------------------------------------------------------------------------
+// 7. reviseDraft — Targeted revision based on human feedback
+// ---------------------------------------------------------------------------
+
+worker.tool("reviseDraft", {
+	title: "Revise Draft",
+	description:
+		"Revise an existing blog draft based on human editor feedback. Takes the current draft, revision notes, and optionally the original transcript for quote verification. Applies targeted changes while maintaining all editorial standards. Run this after reviewing a draft from generateDraft.",
+	schema: j.object({
+		draft: j
+			.string()
+			.describe("The current blog draft to revise."),
+		feedback: j
+			.string()
+			.describe("Human editor's revision notes and feedback — specific changes requested."),
+		transcript: j
+			.string()
+			.describe(
+				"Original transcript for quote verification. Include if feedback involves quotes.",
+			)
+			.nullable(),
+	}),
+	execute: async ({ draft, feedback, transcript }) => {
+		const userMessage = [
+			`## CURRENT DRAFT\n\n${draft}`,
+			`\n## REVISION NOTES FROM EDITOR\n\n${feedback}`,
+			transcript
+				? `\n## SOURCE TRANSCRIPT (for quote verification)\n\n${transcript}`
+				: "",
+			`\nApply the revision notes to the draft. Execute each requested change while maintaining editorial standards. Output the complete revised blog post, then your revision notes.`,
+		]
+			.filter(Boolean)
+			.join("\n");
+
+		return await callClaude(REVISION_EDITOR_SYSTEM, [
 			{ role: "user", content: userMessage },
 		]);
 	},
