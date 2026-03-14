@@ -121,11 +121,13 @@ These principles are baked into `editSection` as its core editorial logic. They 
 1. **Notion is the hub** — project management, content storage, agent orchestration.
 2. **Thesis-first pipeline** — no drafting begins until the user approves a thesis. This is the single highest-leverage decision for draft quality.
 3. **Section-by-section editing** — solves the context window problem. Each `editSection` call has tight context (~2-3 paragraphs + thesis). No drift, no bloat.
-4. **Editorial principles are hardcoded, not configurable** — the user's writing standards don't change blog-to-blog. They're the tool's DNA.
-5. **Workfront is locked down** — no API. The `prepWorkfront` tool generates the text; user copy/pastes into Workfront.
-6. **Content source is almost entirely from transcripts** — minimal external research needed.
-7. **The user provides detailed outlines** — sections, key points, structure. The `processTranscript` tool can suggest outlines, but editorial direction is the user's domain.
-8. **Blog structure**: typically intro + 2-3 body sections + conclusion, each with 2-3 paragraphs. This makes section-by-section editing very practical (4-5 `editSection` calls per blog).
+4. **Pipeline-aware tools** — each tool embeds awareness of its role in the pipeline. Not shared state — each tool's description and internal logic references what feeds it and what consumes its output. LLMs produce better output when they understand *why* they're generating something. Example: `generateDraft` knows its output will be edited section-by-section, so it structures sections to be self-contained. `editSection` knows it's the final polish pass, so it refines rather than restructures.
+5. **Editorial principles are hardcoded, not configurable** — the user's writing standards don't change blog-to-blog. They're the tool's DNA.
+6. **precedingContext in editSection** — 1-2 sentence summary of prior sections passed by the agent, so `editSection` can handle transitions without needing to see the full blog.
+7. **Workfront is locked down** — no API. The `prepWorkfront` tool generates the text; user copy/pastes into Workfront.
+8. **Content source is almost entirely from transcripts** — minimal external research needed.
+9. **The user provides detailed outlines** — sections, key points, structure. The `processTranscript` tool can suggest outlines, but editorial direction is the user's domain.
+10. **Blog structure**: typically intro + 2-3 body sections + conclusion, each with 2-3 paragraphs. This makes section-by-section editing very practical (4-5 `editSection` calls per blog).
 
 ## Content Details
 
@@ -172,5 +174,5 @@ const fireflies = worker.oauth("fireflies", {
 - What auth flow does Fireflies use? (Need to check their API docs)
 - What's in `blog-generation-tool-v2`? (Personas, protocols, prompts — need to analyze for anything not captured in the Editorial DNA section above)
 - How should the Notion database be structured for the blog pipeline?
-- How should `editSection` handle the `precedingContext` parameter? Options: (a) agent passes a 1-2 sentence summary of prior sections, (b) tool receives headings of prior sections, (c) nothing — each section is edited in isolation. Tradeoff: more context = better flow, but more tokens per call.
+- **RESOLVED**: `editSection` receives `precedingContext` — a 1-2 sentence summary of prior sections, passed by the agent.
 - Should `generateDraft` also receive the editorial principles to produce a better raw draft, or should it intentionally stay "raw" and let `editSection` do all the polishing? (Current design: raw draft → polish. But front-loading some editorial awareness in `generateDraft` might reduce the delta `editSection` has to cover.)
