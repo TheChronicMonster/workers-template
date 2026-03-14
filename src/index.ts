@@ -503,3 +503,35 @@ worker.tool("reviseDraft", {
 		]);
 	},
 });
+
+// ---------------------------------------------------------------------------
+// 8. mechanicalClean — Fix specific violations flagged by Python validator
+// ---------------------------------------------------------------------------
+
+worker.tool("mechanicalClean", {
+	title: "Mechanical Clean",
+	description:
+		"Fix specific rule violations in a blog draft, guided by a deterministic validation report. Takes the draft and a list of violations (from validate-draft.py) and fixes only the flagged items. Skips this tool if the validator reports no violations.",
+	schema: j.object({
+		draft: j
+			.string()
+			.describe("The blog draft to clean."),
+		violationReport: j
+			.string()
+			.describe(
+				"The validation report from validate-draft.py listing specific violations to fix.",
+			),
+	}),
+	execute: async ({ draft, violationReport }) => {
+		const cleanPrompt = [
+			`## DRAFT TO CLEAN\n\n${draft}`,
+			`\n## VIOLATIONS DETECTED BY AUTOMATED VALIDATOR\n\nThe following violations were found by deterministic Python checks. These are FACTS, not suggestions — each one is a confirmed rule violation that must be fixed.\n\n${violationReport}`,
+			`\nFix ONLY the violations listed above. Do not rewrite sections that aren't flagged. For each banned word/phrase, replace with a concrete, specific alternative. For dashes, restructure using periods or commas. For quote issues, integrate quotes more naturally.`,
+			`Output the complete cleaned blog post, then "---\\nMechanical Clean Notes:" listing every change made.`,
+		].join("\n");
+
+		return await callClaude(MECHANICAL_EDITOR_SYSTEM, [
+			{ role: "user", content: cleanPrompt },
+		]);
+	},
+});
