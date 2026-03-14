@@ -1,38 +1,45 @@
 {
-  "_description": "JP Miller voice profile — extracted style rules, NOT content. Populate the 'samples' folder with 3-5 past blog posts, then run extraction to refine these directives.",
-  "_status": "PLACEHOLDER — refine after populating reference/samples/ with real blog posts",
+  "_description": "JP Miller voice profile — extracted from 5 published blog posts. Style rules only, no content enters prompts at runtime.",
+  "_status": "CALIBRATED from reference/samples/ (Barcelona JRPG, AI Cameras Circuits, GPU Comparison, Rosetta Initiative, Child Mind Institute)",
+  "_extraction_method": "Pattern analysis across 5 published blogs totaling ~38,700 characters",
 
   "sentence_rhythm": {
-    "short_punch": "Use 3-7 word declarative sentences to punctuate key moments. One per paragraph maximum.",
-    "medium_flow": "Default sentence length: 12-18 words. Clear subject-verb-object with one qualifier.",
-    "long_build": "Occasional 20-25 word sentences to build tension or layer context. Never two in a row.",
-    "variation_rule": "Never write 3+ sentences of similar length consecutively. Alternate between short, medium, and long."
+    "short_punch": "Use 3-8 word declarative sentences to punctuate key moments or section transitions. Examples from samples: 'The delays killed any sense of creative momentum.' 'Rather than fold, he pivoted.' One per paragraph maximum.",
+    "medium_flow": "Default sentence length: 12-20 words. Clear subject-verb-object, one qualifier allowed. This is the workhorse sentence.",
+    "long_build": "Occasional 22-30 word sentences to layer context or build technical explanation. Never two in a row. Use when stacking specific details that earn the length.",
+    "variation_rule": "Never write 3+ sentences of similar length consecutively. The natural pattern in samples: medium-medium-short, or medium-long-short. Short sentences earn their impact by following longer ones."
   },
 
   "paragraph_cadence": {
-    "length_variation": "Mix 1-sentence, 2-sentence, and 3-4 sentence paragraphs. Never more than 4 sentences.",
-    "section_endings": "End each section with a short, declarative statement. Period, not question mark.",
-    "opening_variety": "Vary paragraph openings: proper noun, action verb, specific detail, transition. Never start 2 consecutive paragraphs the same way."
+    "length_variation": "Mix 1-sentence, 2-sentence, and 3-4 sentence paragraphs. Samples average 2.8 sentences per paragraph. Never exceed 5 sentences.",
+    "section_endings": "End sections with a short, declarative statement. Period, not question mark. Forward-leaning when possible — hint at what comes next.",
+    "opening_variety": "Vary paragraph openings: proper noun, action verb, specific detail, temporal marker, quote lead-in. Never start 2 consecutive paragraphs the same way. Samples show strong preference for opening with the subject's name or a concrete action.",
+    "single_sentence_paragraphs": "Used sparingly for emphasis or transition. Effective after a longer paragraph to create breathing room. Samples use about 1 per 5-6 paragraphs."
   },
 
   "word_choice": {
-    "prefer_concrete": "Choose 'welded' over 'assembled,' 'sprinted' over 'moved quickly.' Specific verbs over adverb+generic verb.",
-    "favor_periods": "Prefer periods over semicolons. Prefer shorter sentences over longer ones joined by conjunctions.",
-    "minimize_qualifiers": "Cut 'very,' 'really,' 'quite,' 'somewhat.' If the adjective needs amplifying, choose a stronger adjective.",
-    "active_specificity": "Name the tool, the person, the place. 'Maya crashed during the render' not 'the software had issues.'"
+    "prefer_concrete": "Choose specific verbs: 'froze,' 'collapsed,' 'stalled,' 'registered,' 'deployed' over generic alternatives. Samples favor verbs that imply physical action even in technical contexts.",
+    "favor_periods": "Prefer periods over semicolons. Samples use semicolons rarely (roughly 1 per 800 words). Prefer two short sentences over one compound sentence.",
+    "minimize_qualifiers": "Cut 'very,' 'really,' 'quite,' 'somewhat,' 'significant.' Samples replace qualifiers with specifics: not 'significantly faster' but '45 minutes instead of two and a half hours.'",
+    "active_specificity": "Name the tool, the person, the place, the number. 'Maya crashed during the render' not 'the software had issues.' '120,000 players' not 'a large user base.'",
+    "numbers_as_drama": "Use specific numbers to create tension or show transformation: '€50,000 goal in two hours,' 'two and a half hours to 45 minutes,' 'one in five children.' Numbers replace adjectives."
   },
 
   "structural_patterns": {
-    "narrative_entry": "Open with a specific scene, action, or quote — never a generalization about the industry.",
-    "quote_integration": "Weave quotes into narrative flow. The sentence before a quote should create the context that makes the quote land.",
-    "tension_before_resolution": "Always present the constraint or problem BEFORE the achievement. Never lead with the win.",
-    "closing_style": "End pieces with forward motion — what happens next, what this enables — not a summary of what was said."
+    "narrative_entry": "Open with a named person and what they do. Ground the reader in a specific human before introducing the problem or technology. Never open with an industry generalization. Samples consistently open with: '[Name] [does/is/has] [specific thing].'",
+    "problem_before_tech": "Introduce the constraint, frustration, or challenge before the technology that addresses it. The human struggle earns the reader's investment; the tech payoff lands harder after tension. Every sample follows this pattern.",
+    "quote_integration": "Set up quotes with narrative context that makes the quote land. The sentence before a quote should establish the situation; the quote then delivers the voice. Never use 'said:' pattern. Samples favor '[Context sentence.] \"Quote,\" [attribution with additional context].'",
+    "tension_before_resolution": "Always present the constraint or problem BEFORE the achievement. Show what was broken, slow, or impossible first. The transformation earns meaning from contrast.",
+    "closing_style": "End with forward motion: what happens next, what this enables, where the subject is headed. Final paragraphs in samples introduce new information (a future release, a broader implication) rather than summarizing. CTA is woven into the narrative resolution, never bolted on.",
+    "subheading_usage": "Subheadings mark thesis progression, not cosmetic breaks. Samples average 3-4 subheadings per blog. Each marks a genuine shift: from backstory to problem, problem to resolution, resolution to future."
   },
 
   "anti_patterns": {
-    "no_throat_clearing": "Cut opening phrases like 'When it comes to,' 'In the world of,' 'It's no secret that.'",
-    "no_false_balance": "Don't hedge with 'While X is true, Y is also important.' Pick a lane.",
-    "no_list_exhaustion": "Don't enumerate every feature or benefit. Pick the 2-3 most vivid and let them represent the whole.",
-    "no_echo_conclusions": "The conclusion should add something new (a future implication, a lingering question) — never just restate the introduction."
+    "no_throat_clearing": "Cut opening phrases: 'When it comes to,' 'In the world of,' 'It's no secret that,' 'In today's landscape.' Start with the subject or action.",
+    "no_false_balance": "Don't hedge with 'While X is true, Y is also important.' Samples commit to a direction. When comparison is needed (GPU article), let data speak instead of hedging language.",
+    "no_list_exhaustion": "Don't enumerate every feature or benefit. Pick the 2-3 most vivid examples and let them represent the whole. Samples rarely list more than 3 items in sequence.",
+    "no_echo_conclusions": "The conclusion must add something new — a future milestone, a broader implication, a lingering question. Never restate the introduction or summarize the body.",
+    "no_passive_attribution": "Don't write 'It was noted that' or 'It has been observed.' Name who did what. Samples consistently use active voice with named subjects.",
+    "no_tech_worship": "Technology is context, not the headline. The human's story comes first. Dell and NVIDIA appear as tools the subject uses, not as the protagonist. Samples mention brand names 2-4 times in the body, always in service of the narrative."
   }
 }

@@ -5,6 +5,8 @@ import {
 	RESEARCHER_SYSTEM,
 	WRITER_SIMPLE_SYSTEM,
 	MECHANICAL_EDITOR_SYSTEM,
+	VOICE_RHYTHM_EDITOR_SYSTEM,
+	FINAL_EDITOR_SYSTEM,
 } from "./prompts/personas.js";
 import { SOCIAL_POSTS_SYSTEM } from "./prompts/social-personas.js";
 import { WRITING_RULES } from "./lib/writing-rules.js";
@@ -176,7 +178,7 @@ worker.tool("processTranscript", {
 worker.tool("generateDraft", {
 	title: "Generate Blog Draft",
 	description:
-		"Generate a near-final Dell/NVIDIA blog post from a transcript and optional outline. Uses a 5-stage chained pipeline: Researcher → Writer → Mechanical Editor → Voice Editor → Final Editor. Produces publication-ready content with title, body, CTA, and editorial notes.",
+		"Generate a publication-ready Dell/NVIDIA blog post from a transcript and optional outline. Runs a 5-stage chained pipeline: (1) Researcher extracts story foundation, (2) Writer produces draft, (3) Mechanical Editor enforces rules, (4) Voice & Rhythm Editor applies JP Miller cadence and removes AIisms, (5) Final Editor verifies thesis, quotes, and corporate contamination. Returns the final post with editorial notes.",
 	schema: j.object({
 		transcript: j
 			.string()
@@ -214,11 +216,33 @@ worker.tool("generateDraft", {
 					? WRITING_RULES.cta.nvidiaFocus
 					: WRITING_RULES.cta.combined;
 
-		// ── CALL 1: Write it ──
+		const stageLog: string[] = [];
+
+		// ── STAGE 1: Researcher — extract story foundation ──
+		const researchPrompt = [
+			`BLOG TYPE: ${type}`,
+			subjectName ? `SUBJECT: ${subject}` : "",
+			`\n## SOURCE TRANSCRIPT\n\n${transcript}`,
+			outline ? `\n## PRE-APPROVED OUTLINE\n\n${outline}` : "",
+			`\nAnalyze this transcript. Deliver: story material (what happened, key facts, specifics), usable quotes (ranked strongest to weakest with honest assessment), and 2-3 blog angles with outlines. Be direct about what's strong and what's thin.`,
+			outline
+				? `\nNote: An outline has been pre-approved. Your analysis should support it, but flag honestly if the transcript material is thin for any section.`
+				: "",
+		]
+			.filter(Boolean)
+			.join("\n");
+
+		const research = await callClaude(RESEARCHER_SYSTEM, [
+			{ role: "user", content: researchPrompt },
+		]);
+		stageLog.push("Stage 1 (Researcher): complete");
+
+		// ── STAGE 2: Writer — produce draft from research ──
 		const writePrompt = [
 			`Write a Dell blog post about ${subject}.`,
 			`Blog type: ${type}.`,
-			outline ? `\n## OUTLINE\n\n${outline}` : "",
+			`\n## RESEARCHER NOTES\n\n${research}`,
+			outline ? `\n## APPROVED OUTLINE\n\n${outline}` : "",
 			`\n## SOURCE TRANSCRIPT\n\n${transcript}`,
 			`\nCTA direction: ${cta}`,
 		]
@@ -228,8 +252,9 @@ worker.tool("generateDraft", {
 		const draft = await callClaude(WRITER_SIMPLE_SYSTEM, [
 			{ role: "user", content: writePrompt },
 		]);
+		stageLog.push("Stage 2 (Writer): complete");
 
-		// ── CALL 2: Clean it ──
+		// ── STAGE 3: Mechanical Editor — deterministic rule enforcement ──
 		const cleanPrompt = [
 			`## DRAFT TO CLEAN\n\n${draft}`,
 			`\nPerform your mechanical edit pass. Fix all rule violations: banned language, em dashes, AP Style, quote discipline, title word count, tech specificity, prohibited patterns.`,
@@ -239,8 +264,38 @@ worker.tool("generateDraft", {
 		const cleaned = await callClaude(MECHANICAL_EDITOR_SYSTEM, [
 			{ role: "user", content: cleanPrompt },
 		]);
+		stageLog.push("Stage 3 (Mechanical Editor): complete");
 
-		return cleaned;
+		// ── STAGE 4: Voice & Rhythm Editor — cadence, AIism removal ──
+		const voicePrompt = [
+			`## MECHANICALLY CLEANED DRAFT\n\n${cleaned}`,
+			`\nPerform your voice and rhythm pass. Eliminate AIisms, enforce cadence variation, check flow and perspective consistency.`,
+			`Preserve all mechanical edit fixes. Do not reintroduce banned words or em dashes.`,
+			`Output the complete rhythm-edited blog post, then your voice & rhythm notes.`,
+		].join("\n");
+
+		const voiced = await callClaude(VOICE_RHYTHM_EDITOR_SYSTEM, [
+			{ role: "user", content: voicePrompt },
+		]);
+		stageLog.push("Stage 4 (Voice & Rhythm Editor): complete");
+
+		// ── STAGE 5: Final Editor — story integrity, thesis, contamination check ──
+		const finalPrompt = [
+			`## VOICE-EDITED DRAFT\n\n${voiced}`,
+			`\n## SOURCE TRANSCRIPT (for quote verification)\n\n${transcript}`,
+			`\nPerform your final editorial pass. Verify thesis progression, quote accuracy against the transcript, corporate contamination, and story flow.`,
+			`Output the publication-ready blog post, then your final editorial notes.`,
+		].join("\n");
+
+		const finalPost = await callClaude(FINAL_EDITOR_SYSTEM, [
+			{ role: "user", content: finalPrompt },
+		]);
+		stageLog.push("Stage 5 (Final Editor): complete");
+
+		return [
+			finalPost,
+			`\n\n---\n## Pipeline Log\n${stageLog.join("\n")}`,
+		].join("");
 	},
 });
 
