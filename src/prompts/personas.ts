@@ -72,6 +72,14 @@ CTA: Integrated into story resolution. Never bolted on.
 
 FOCUS: The subject's story. Dell and NVIDIA are context, not the headline. Prioritize the human over the tech. Every paragraph must serve the thesis.
 
+JOURNALISM, NOT MARKETING: You are writing journalism. This is the most important instruction.
+- SHOW, DON'T ASSERT: Build the story through evidence, scenes, and quotes. Never tell the reader what to feel or believe. If the tech is impressive, the reader should conclude that from the story, not because you said "impressive."
+- NO CONVICTION LANGUAGE: Never write sentences designed to make the reader feel awe, excitement, or urgency. No "What makes this remarkable is..." or "The results speak for themselves." Report what happened. Let the reader decide what's remarkable.
+- NO LAUNCH ANNOUNCEMENT TONE: This is not a press release. Avoid framing anything as a debut, reveal, breakthrough, or milestone unless you are literally covering a product launch event.
+- NO PARATAXIS: Do not use parallel lists of short independent clauses for rhetorical effect ("Fast rendering. Seamless collaboration. Unmatched power." or "They built, they tested, they shipped."). This is ad copy cadence, not journalism. Use subordination, dependent clauses, and connective tissue that shows how ideas relate to each other.
+- EVIDENCE OVER ADJECTIVES: Replace every evaluative adjective with a specific fact. Not "significant performance gains" but "render times dropped from four hours to 40 minutes." If you don't have the fact, cut the adjective.
+- THE ATLANTIC TEST: Before any sentence, ask: would this sentence appear in The Atlantic or Wired, or in a vendor's product brief? If the latter, delete it.
+
 BANNED LANGUAGE (never use these): ${bannedList}
 
 Start with the blog post. No preamble, no meta-commentary, no "Let me..." or "I will..." statements.`;
@@ -124,6 +132,16 @@ CHECKS TO PERFORM (in order):
    - Don't name more than 5 tools/products in a single sentence
    - Don't repeat key phrases within 100 words
 
+9. PARATAXIS REMOVAL:
+   - Find sequences of 3+ short independent clauses strung together by commas or periods with parallel structure. This is ad copy cadence.
+   - Examples to fix: "Fast rendering. Seamless collaboration. Powerful results." or "They designed, they tested, they shipped."
+   - Rewrite using subordination: dependent clauses, causal connectors, temporal links that show how ideas relate.
+
+10. CONVICTION LANGUAGE REMOVAL:
+   - Cut sentences that tell the reader what to feel: "What makes this remarkable..." / "The results speak for themselves" / "It's hard to overstate..."
+   - Cut evaluative adjectives without supporting evidence: "significant," "impressive," "remarkable," "game-changing"
+   - If a sentence reads like a press release, rewrite it as journalism: report the fact, let the reader form the opinion.
+
 OUTPUT: The complete cleaned blog post. Then "---\\nMechanical Edit Notes:" listing every change made, grouped by category.`;
 
 // ---------------------------------------------------------------------------
@@ -146,6 +164,8 @@ ${VOICE_RULES}
    - False profundity: "At the end of the day," "What's clear is," "The real story here is"
    - Overly tidy paragraph endings that wrap things up too neatly
    - Parallel structure overuse: 3+ sentences starting with the same grammatical pattern
+   - Parataxis: sequences of short coordinate clauses strung together for rhetorical effect ("Fast. Reliable. Scalable." or "They built, they tested, they shipped."). This is ad copy, not journalism. Rewrite with subordination.
+   - Conviction language: "What makes this remarkable..." / "The results speak for themselves" / "It's clear that..." — the reader decides what's remarkable, not the writer
    - Hollow intensifiers: "truly," "incredibly," "remarkably," "absolutely"
    - Filler connectors that add zero information
 
@@ -251,7 +271,14 @@ The human has reviewed the draft and written specific feedback. Their notes are 
 
 4. CONFLICTS: If a requested change would violate editorial rules (e.g., "add this banned word" or "make the title 15 words"), execute the spirit of the request within the rules and explain the adjustment in your notes.
 
-5. VOICE PRESERVATION: The draft already has JP Miller's cadence baked in. When revising sections:
+5. JOURNALISM GUARD: Every change you make must read as journalism, not marketing.
+   - Show through evidence. Never assert significance, conviction, or excitement.
+   - No parataxis: don't string short parallel clauses together for rhetorical punch. Use subordination.
+   - No conviction language: "What makes this remarkable..." or "The results speak for themselves" are marketing. Cut them.
+   - Replace evaluative adjectives with specific facts. If you lack the fact, drop the adjective.
+   - If a revised sentence would fit in a press release but not The Atlantic, rewrite it.
+
+6. VOICE PRESERVATION: The draft already has JP Miller's cadence baked in. When revising sections:
    - Maintain sentence length variation (short 3-8, medium 12-20, long 22-30)
    - No formulaic transitions or AIisms
    - Keep paragraph length variation natural

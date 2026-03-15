@@ -275,6 +275,152 @@ def check_duplicate_paragraph_openings(content: str) -> List[Dict]:
     return violations
 
 
+def check_parataxis(content: str) -> List[Dict]:
+    """Detect paratactic constructions — ad-copy cadence, not journalism.
+
+    Catches:
+    1. Fragment lists: "Fast rendering. Seamless collaboration. Powerful results."
+    2. Parallel clause chains: "They built, they tested, they shipped."
+    3. Asyndetic lists of independent clauses with matching structure.
+    """
+    violations = []
+    lines = content.splitlines()
+
+    # --- Pattern 1: Fragment sequences (3+ consecutive short fragments) ---
+    # A "fragment" is a line under 8 words with no subordinating conjunction.
+    fragment_run: List[Tuple[int, str]] = []
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or stripped.startswith("---"):
+            # Reset on blanks/headers/dividers
+            if len(fragment_run) >= 3:
+                violations.append({
+                    "check": "parataxis",
+                    "severity": "error",
+                    "line": fragment_run[0][0],
+                    "message": f"Parataxis: {len(fragment_run)} consecutive short fragments (ad-copy cadence)",
+                    "context": " / ".join(f[1] for f in fragment_run[:4]),
+                })
+            fragment_run = []
+            continue
+
+        words = stripped.rstrip(".!?,;:").split()
+        if 1 <= len(words) <= 8 and not re.search(
+            r"\b(because|although|while|since|when|if|after|before|unless|until|whereas|that|which|who)\b",
+            stripped, re.IGNORECASE
+        ):
+            fragment_run.append((i + 1, stripped))
+        else:
+            if len(fragment_run) >= 3:
+                violations.append({
+                    "check": "parataxis",
+                    "severity": "error",
+                    "line": fragment_run[0][0],
+                    "message": f"Parataxis: {len(fragment_run)} consecutive short fragments (ad-copy cadence)",
+                    "context": " / ".join(f[1] for f in fragment_run[:4]),
+                })
+            fragment_run = []
+
+    # Flush remaining
+    if len(fragment_run) >= 3:
+        violations.append({
+            "check": "parataxis",
+            "severity": "error",
+            "line": fragment_run[0][0],
+            "message": f"Parataxis: {len(fragment_run)} consecutive short fragments (ad-copy cadence)",
+            "context": " / ".join(f[1] for f in fragment_run[:4]),
+        })
+
+    # --- Pattern 2: "They X, they Y, they Z" parallel clause chains ---
+    # Matches 3+ comma-separated clauses with repeating subject pattern
+    parallel_pattern = re.compile(
+        r"(\b\w+\s+\w+(?:ed|s)\b)"   # subject + past/present verb
+        r"(?:\s*,\s*\1){2,}",          # repeated 2+ more times
+        re.IGNORECASE
+    )
+    # More practical: catch "Subject verb, subject verb, subject verb" within a line
+    pronoun_chain = re.compile(
+        r"\b(they|we|he|she|it|I)\s+\w+(?:ed|s)?\s*,\s*"
+        r"\1\s+\w+(?:ed|s)?\s*,\s*"
+        r"\1\s+\w+(?:ed|s)?",
+        re.IGNORECASE
+    )
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if pronoun_chain.search(stripped):
+            violations.append({
+                "check": "parataxis",
+                "severity": "error",
+                "line": i + 1,
+                "message": "Parataxis: parallel clause chain with repeating subject",
+                "context": stripped[:120],
+            })
+
+    # --- Pattern 3: Sentence-level fragment list within a single line ---
+    # "Fast rendering. Seamless collaboration. Powerful results."
+    inline_fragments = re.compile(
+        r"(?:^|[.!])\s*"
+        r"[A-Z]\w{0,12}\s+\w{2,15}\s*\.\s*"  # Adj/short + noun + period
+        r"[A-Z]\w{0,12}\s+\w{2,15}\s*\.\s*"
+        r"[A-Z]\w{0,12}\s+\w{2,15}\s*[.!]"
+    )
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if inline_fragments.search(stripped):
+            violations.append({
+                "check": "parataxis",
+                "severity": "error",
+                "line": i + 1,
+                "message": "Parataxis: inline fragment list (adjective-noun pattern)",
+                "context": stripped[:120],
+            })
+
+    return violations
+
+
+def check_conviction_language(content: str) -> List[Dict]:
+    """Detect language that tells the reader what to feel instead of showing.
+
+    These are marketing patterns, not journalism patterns.
+    """
+    violations = []
+    lines = content.splitlines()
+
+    conviction_patterns = [
+        (r"\bwhat makes this (?:remarkable|impressive|special|unique|exciting)\b", "what makes this [adjective]"),
+        (r"\bthe results speak for themselves\b", "the results speak for themselves"),
+        (r"\bit'?s hard to overstate\b", "it's hard to overstate"),
+        (r"\bit'?s clear that\b", "it's clear that"),
+        (r"\bwhat'?s clear is\b", "what's clear is"),
+        (r"\bthe real story here is\b", "the real story here is"),
+        (r"\bat the end of the day\b", "at the end of the day"),
+        (r"\bneedless to say\b", "needless to say"),
+        (r"\bit goes without saying\b", "it goes without saying"),
+        (r"\bsuffice it to say\b", "suffice it to say"),
+        (r"\bto say .{1,20} would be an understatement\b", "to say... would be an understatement"),
+        (r"\bcan'?t be overstated\b", "can't be overstated"),
+        (r"\bnothing short of\b", "nothing short of"),
+        (r"\btruly (?:remarkable|impressive|revolutionary|transformative|unique)\b", "truly [adjective]"),
+        (r"\bthe future (?:is|looks) (?:bright|exciting|promising)\b", "the future is [adjective]"),
+    ]
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        for pattern, label in conviction_patterns:
+            if re.search(pattern, stripped, re.IGNORECASE):
+                violations.append({
+                    "check": "conviction_language",
+                    "severity": "error",
+                    "line": i + 1,
+                    "message": f"Conviction language: \"{label}\" — show through evidence, don't assert",
+                    "context": stripped[:120],
+                })
+
+    return violations
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -288,6 +434,8 @@ ALL_CHECKS = [
     check_quote_count,
     check_say_then_quote,
     check_duplicate_paragraph_openings,
+    check_parataxis,
+    check_conviction_language,
 ]
 
 
