@@ -8,6 +8,8 @@ import {
 	VOICE_RHYTHM_EDITOR_SYSTEM,
 	FINAL_EDITOR_SYSTEM,
 	REVISION_EDITOR_SYSTEM,
+	SESSION_EDITOR_SYSTEM,
+	SESSION_WRITER_SYSTEM,
 } from "./prompts/personas.js";
 import { SOCIAL_POSTS_SYSTEM } from "./prompts/social-personas.js";
 import { WRITING_RULES } from "./lib/writing-rules.js";
@@ -533,5 +535,160 @@ worker.tool("mechanicalClean", {
 		return await callClaude(MECHANICAL_EDITOR_SYSTEM, [
 			{ role: "user", content: cleanPrompt },
 		]);
+	},
+});
+
+// ---------------------------------------------------------------------------
+// 9. editorialSession — Writer-Editor conversation loop
+// ---------------------------------------------------------------------------
+
+import type { ClaudeMessage } from "./lib/claude.js";
+
+worker.tool("editorialSession", {
+	title: "Editorial Session",
+	description:
+		"Run an iterative writer-editor conversation on a blog draft. The editor gives feedback and asks questions; the writer revises based on that feedback plus the original source material. Runs up to 3 rounds or until the editor approves. Use this after generating an initial draft.",
+	schema: j.object({
+		draft: j
+			.string()
+			.describe("The current blog draft to workshop."),
+		transcript: j
+			.string()
+			.describe(
+				"Original transcript — the writer references this to answer editor questions and verify quotes.",
+			)
+			.nullable(),
+		research: j
+			.string()
+			.describe(
+				"Research notes from the researcher stage, if available.",
+			)
+			.nullable(),
+		direction: j
+			.string()
+			.describe(
+				"Optional initial direction or focus areas for the editor. E.g., 'Focus on strengthening the opening and checking for marketing drift.'",
+			)
+			.nullable(),
+	}),
+	execute: async ({ draft, transcript, research, direction }) => {
+		const MAX_ROUNDS = 3;
+
+		// Conversation histories — each agent sees its own thread
+		const editorMessages: ClaudeMessage[] = [];
+		const writerMessages: ClaudeMessage[] = [];
+
+		// Source material block the writer can reference
+		const sourceBlock = [
+			transcript ? `## SOURCE TRANSCRIPT\n\n${transcript}` : "",
+			research ? `## RESEARCH NOTES\n\n${research}` : "",
+		]
+			.filter(Boolean)
+			.join("\n\n");
+
+		let currentDraft = draft;
+		let sessionLog = "# Editorial Session Log\n\n";
+		let approved = false;
+
+		for (let round = 1; round <= MAX_ROUNDS; round++) {
+			sessionLog += `## Round ${round}\n\n`;
+
+			// --- Editor reads the draft and gives feedback ---
+			const editorPrompt =
+				round === 1
+					? [
+							`Here is the draft to review:\n\n${currentDraft}`,
+							direction
+								? `\nThe human editor has asked you to focus on: ${direction}`
+								: "",
+							`\nThis is round ${round} of up to ${MAX_ROUNDS}. Give your feedback.`,
+						]
+							.filter(Boolean)
+							.join("\n")
+					: [
+							`The writer has revised the draft based on your feedback. Here is the new version:\n\n${currentDraft}`,
+							`\nThis is round ${round} of up to ${MAX_ROUNDS}. Review the changes and give your feedback. If the piece is ready, say APPROVED in your verdict.`,
+						].join("\n");
+
+			editorMessages.push({ role: "user", content: editorPrompt });
+
+			const editorFeedback = await callClaude(
+				SESSION_EDITOR_SYSTEM,
+				editorMessages,
+			);
+
+			editorMessages.push({
+				role: "assistant",
+				content: editorFeedback,
+			});
+
+			sessionLog += `### Editor Feedback\n\n${editorFeedback}\n\n`;
+
+			// Check if editor approved
+			if (/\bAPPROVED\b/.test(editorFeedback)) {
+				approved = true;
+				sessionLog += `*Editor approved the draft in round ${round}.*\n\n`;
+				break;
+			}
+
+			// --- Writer reads editor feedback and revises ---
+			const writerPrompt =
+				round === 1
+					? [
+							`Here is your current draft:\n\n${currentDraft}`,
+							sourceBlock
+								? `\n${sourceBlock}`
+								: "",
+							`\n## EDITOR FEEDBACK (Round ${round})\n\n${editorFeedback}`,
+							`\nAddress the editor's feedback. Answer their questions from the source material. Revise the draft.`,
+						]
+							.filter(Boolean)
+							.join("\n")
+					: [
+							`## EDITOR FEEDBACK (Round ${round})\n\n${editorFeedback}`,
+							`\nAddress this round's feedback. Your current draft and source material are in the conversation above. Output your response and the complete revised draft.`,
+						].join("\n");
+
+			writerMessages.push({ role: "user", content: writerPrompt });
+
+			// On first round, include source material in writer's context
+			if (round === 1 && sourceBlock) {
+				// Source material is already included in the first prompt
+			}
+
+			const writerResponse = await callClaude(
+				SESSION_WRITER_SYSTEM,
+				writerMessages,
+			);
+
+			writerMessages.push({
+				role: "assistant",
+				content: writerResponse,
+			});
+
+			sessionLog += `### Writer Response\n\n${writerResponse}\n\n`;
+
+			// Extract the revised draft from the writer's response
+			// The writer outputs discussion first, then "---\nREVISED DRAFT:\n---" then the draft
+			const draftMarker = /---\s*\n\s*REVISED DRAFT:\s*\n\s*---\s*\n/i;
+			const draftSplit = writerResponse.split(draftMarker);
+			if (draftSplit.length >= 2) {
+				currentDraft = draftSplit.slice(1).join("\n").trim();
+			} else {
+				// Fallback: use the whole response as the draft
+				currentDraft = writerResponse;
+			}
+		}
+
+		if (!approved) {
+			sessionLog += `*Maximum rounds (${MAX_ROUNDS}) reached. Proceeding with current draft.*\n\n`;
+		}
+
+		// Output: the final draft, then the session log
+		return [
+			currentDraft,
+			"\n\n---\n## Editorial Session Log\n\n",
+			sessionLog,
+		].join("");
 	},
 });
