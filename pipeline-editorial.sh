@@ -11,10 +11,12 @@ set -euo pipefail
 #
 # Flow:
 #   1. Editorial Session (3 rounds of writer-editor conversation)
-#   2. Python validator (deterministic)
+#   2. Python validator (deterministic) — runs on draft ONLY
 #   3. IF violations → Mechanical Clean (fix flagged items)
 #
-# Creates the next version (04-draft-vN.md) like pipeline-revise.sh.
+# Output:
+#   04-draft-vN.md          — the publishable draft (no editorial notes)
+#   04-editorial-log-vN.md  — the full writer-editor conversation
 
 OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
@@ -46,6 +48,7 @@ fi
 
 NEXT_VERSION=$((LATEST_VERSION + 1))
 NEXT_DRAFT="$OUTPUT_DIR/04-draft-v${NEXT_VERSION}.md"
+SESSION_LOG="$OUTPUT_DIR/04-editorial-log-v${NEXT_VERSION}.md"
 
 echo "Reading draft: $LATEST_DRAFT (version $LATEST_VERSION)"
 echo "Will write: $NEXT_DRAFT (version $NEXT_VERSION)"
@@ -80,14 +83,42 @@ echo ""
 echo "=== Stage 1: Editorial Session (up to 3 rounds) ==="
 echo ""
 
-ntn workers exec editorialSession $LOCAL_FLAG \
-  -d "{\"draft\": $DRAFT_JSON, \"transcript\": $TRANSCRIPT_JSON, \"research\": $RESEARCH_JSON, \"direction\": $DIRECTION_JSON}" \
-  > "$NEXT_DRAFT"
-python3 prettify-files.py "$NEXT_DRAFT"
+RAW_OUTPUT=$(ntn workers exec editorialSession $LOCAL_FLAG \
+  -d "{\"draft\": $DRAFT_JSON, \"transcript\": $TRANSCRIPT_JSON, \"research\": $RESEARCH_JSON, \"direction\": $DIRECTION_JSON}")
 
-# ── STAGE 2: Python Validator (deterministic) ──
+# --- Split output into draft and session log ---
+# Extract content between XML-style markers
+python3 -c "
+import sys
+raw = sys.stdin.read()
+
+draft_start = raw.find('<EDITORIAL_SESSION_DRAFT>')
+draft_end = raw.find('</EDITORIAL_SESSION_DRAFT>')
+log_start = raw.find('<EDITORIAL_SESSION_LOG>')
+log_end = raw.find('</EDITORIAL_SESSION_LOG>')
+
+if draft_start == -1 or draft_end == -1:
+    # Fallback: no markers found, treat entire output as draft
+    print(raw, end='')
+    sys.exit(0)
+
+draft = raw[draft_start + len('<EDITORIAL_SESSION_DRAFT>'):draft_end].strip()
+print(draft, end='')
+
+if log_start != -1 and log_end != -1:
+    log = raw[log_start + len('<EDITORIAL_SESSION_LOG>'):log_end].strip()
+    with open('${SESSION_LOG}', 'w') as f:
+        f.write(log + '\n')
+" <<< "$RAW_OUTPUT" > "$NEXT_DRAFT"
+
+python3 prettify-files.py "$NEXT_DRAFT"
+if [ -f "$SESSION_LOG" ]; then
+  echo "  Session log saved: $SESSION_LOG"
+fi
+
+# ── STAGE 2: Python Validator (deterministic) — draft only ──
 echo ""
-echo "=== Stage 2: Python Validation ==="
+echo "=== Stage 2: Python Validation (draft only) ==="
 
 VALIDATION_REPORT=""
 VALIDATION_EXIT=0
@@ -130,9 +161,8 @@ fi
 
 echo ""
 echo "============================================"
-echo "Editorial session draft: $NEXT_DRAFT"
-echo ""
-echo "The editorial session log is appended to the draft file."
+echo "Draft:       $NEXT_DRAFT"
+echo "Session log: $SESSION_LOG"
 echo ""
 echo "To run another editorial session:"
 echo "  ./pipeline-editorial.sh \"focus on opening and quote selection\""

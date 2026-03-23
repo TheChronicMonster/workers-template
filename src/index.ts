@@ -684,11 +684,14 @@ worker.tool("editorialSession", {
 			sessionLog += `*Maximum rounds (${MAX_ROUNDS}) reached. Proceeding with current draft.*\n\n`;
 		}
 
-		// Output: the final draft, then the session log
+		// Output: draft and session log in machine-parseable sections
 		return [
+			"<EDITORIAL_SESSION_DRAFT>",
 			currentDraft,
-			"\n\n---\n## Editorial Session Log\n\n",
+			"</EDITORIAL_SESSION_DRAFT>",
+			"<EDITORIAL_SESSION_LOG>",
 			sessionLog,
-		].join("");
+			"</EDITORIAL_SESSION_LOG>",
+		].join("\n");
 	},
 });
