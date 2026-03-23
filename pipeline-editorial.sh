@@ -89,8 +89,20 @@ RAW_OUTPUT=$(ntn workers exec editorialSession $LOCAL_FLAG \
 # --- Split output into draft and session log ---
 # Extract content between XML-style markers
 python3 -c "
-import sys
-raw = sys.stdin.read()
+import sys, json
+
+raw = sys.stdin.read().strip()
+
+# Decode JSON-escaped string if needed (ntn workers exec may wrap output in quotes)
+try:
+    decoded = json.loads(raw)
+    if isinstance(decoded, str):
+        raw = decoded
+except (json.JSONDecodeError, ValueError):
+    # Try manual unescaping if it looks JSON-wrapped
+    if raw.startswith('\"') and raw.endswith('\"'):
+        raw = raw[1:-1]
+    raw = raw.replace('\\\\n', '\n').replace('\\\\t', '\t').replace('\\\\\"', '\"')
 
 draft_start = raw.find('<EDITORIAL_SESSION_DRAFT>')
 draft_end = raw.find('</EDITORIAL_SESSION_DRAFT>')
@@ -113,6 +125,7 @@ if log_start != -1 and log_end != -1:
 
 python3 prettify-files.py "$NEXT_DRAFT"
 if [ -f "$SESSION_LOG" ]; then
+  python3 prettify-files.py "$SESSION_LOG"
   echo "  Session log saved: $SESSION_LOG"
 fi
 
