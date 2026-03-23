@@ -23,6 +23,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 SUBJECT_NAME="${1:-}"
 
+# Build subject name JSON (used by all tools for Notion task tracking)
+SUBJECT_JSON="null"
+if [ -n "$SUBJECT_NAME" ]; then
+  SUBJECT_JSON=$(printf '%s' "$SUBJECT_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+fi
+
 # --- Find the latest draft version ---
 LATEST_DRAFT=""
 LATEST_VERSION=1
@@ -88,7 +94,7 @@ echo "=== Stage 1: Revision Editor (v${LATEST_VERSION} → v${NEXT_VERSION}) ===
 echo ""
 
 ntn workers exec reviseDraft $LOCAL_FLAG \
-  -d "{\"draft\": $DRAFT_JSON, \"feedback\": $FEEDBACK_JSON, \"transcript\": $TRANSCRIPT_JSON}" \
+  -d "{\"draft\": $DRAFT_JSON, \"feedback\": $FEEDBACK_JSON, \"transcript\": $TRANSCRIPT_JSON, \"subjectName\": $SUBJECT_JSON}" \
   > "$NEXT_DRAFT"
 python3 prettify-files.py "$NEXT_DRAFT"
 
@@ -115,7 +121,7 @@ else
   REPORT_JSON=$(printf '%s' "$VALIDATION_REPORT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
 
   ntn workers exec mechanicalClean $LOCAL_FLAG \
-    -d "{\"draft\": $REVISED_JSON, \"violationReport\": $REPORT_JSON}" \
+    -d "{\"draft\": $REVISED_JSON, \"violationReport\": $REPORT_JSON, \"subjectName\": $SUBJECT_JSON}" \
     > "$NEXT_DRAFT"
   python3 prettify-files.py "$NEXT_DRAFT"
 

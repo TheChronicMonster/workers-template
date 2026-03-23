@@ -8,19 +8,26 @@ set -euo pipefail
 # Each stage saves to output/. Prettified automatically.
 
 TRANSCRIPT_ID="${1:-}"
+SUBJECT_NAME="${2:-}"
 OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
 
 mkdir -p "$OUTPUT_DIR"
 
+# Build subject name JSON (used by all tools for Notion task tracking)
+SUBJECT_JSON="null"
+if [ -n "$SUBJECT_NAME" ]; then
+  SUBJECT_JSON=$(printf '%s' "$SUBJECT_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+fi
+
 echo "=== Stage 1: Pull Transcript ==="
 if [ -n "$TRANSCRIPT_ID" ]; then
   ntn workers exec pullTranscript $LOCAL_FLAG \
-    -d "{\"transcriptId\": \"$TRANSCRIPT_ID\"}" \
+    -d "{\"transcriptId\": \"$TRANSCRIPT_ID\", \"subjectName\": $SUBJECT_JSON}" \
     > "$OUTPUT_DIR/01-transcript.md"
 else
   ntn workers exec pullTranscript $LOCAL_FLAG \
-    -d '{"transcriptId": null}' \
+    -d "{\"transcriptId\": null, \"subjectName\": $SUBJECT_JSON}" \
     > "$OUTPUT_DIR/01-transcript.md"
 fi
 python3 prettify-files.py "$OUTPUT_DIR/01-transcript.md"
@@ -30,17 +37,9 @@ echo "=== Stage 2: Process Transcript ==="
 TRANSCRIPT=$(cat "$OUTPUT_DIR/01-transcript.md")
 TRANSCRIPT_JSON=$(printf '%s' "$TRANSCRIPT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
 
-SUBJECT_NAME="${2:-}"
-if [ -n "$SUBJECT_NAME" ]; then
-  SUBJECT_JSON=$(printf '%s' "$SUBJECT_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
-  ntn workers exec processTranscript $LOCAL_FLAG \
-    -d "{\"transcript\": $TRANSCRIPT_JSON, \"subjectName\": $SUBJECT_JSON, \"blogType\": null}" \
-    > "$OUTPUT_DIR/02-research.md"
-else
-  ntn workers exec processTranscript $LOCAL_FLAG \
-    -d "{\"transcript\": $TRANSCRIPT_JSON, \"blogType\": null, \"subjectName\": null}" \
-    > "$OUTPUT_DIR/02-research.md"
-fi
+ntn workers exec processTranscript $LOCAL_FLAG \
+  -d "{\"transcript\": $TRANSCRIPT_JSON, \"subjectName\": $SUBJECT_JSON, \"blogType\": null}" \
+  > "$OUTPUT_DIR/02-research.md"
 python3 prettify-files.py "$OUTPUT_DIR/02-research.md"
 echo ""
 

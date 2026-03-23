@@ -33,7 +33,7 @@ fi
 
 echo "=== Stage 4a: Prep Workfront ==="
 ntn workers exec prepWorkfront $LOCAL_FLAG \
-  -d "{\"blogPost\": $BLOG_JSON}" \
+  -d "{\"blogPost\": $BLOG_JSON, \"subjectName\": $SUBJECT_JSON}" \
   > "$OUTPUT_DIR/05-workfront.md"
 python3 prettify-files.py "$OUTPUT_DIR/05-workfront.md"
 echo ""

@@ -2,12 +2,13 @@
 set -euo pipefail
 
 # Blog Generation Pipeline — Editorial Session
-# Usage: ./pipeline-editorial.sh [direction]
+# Usage: ./pipeline-editorial.sh [subject_name] [direction]
 #
 # Requires: output/04-draft.md (or latest 04-draft-vN.md)
 # Optional: output/01-transcript.md (for quote verification)
 # Optional: output/02-research.md (research notes)
-# Optional: direction argument — focus area for the editor
+# Optional: subject_name — codename for Notion task tracking
+# Optional: direction — focus area for the editor
 #
 # Flow:
 #   1. Editorial Session (3 rounds of writer-editor conversation)
@@ -22,7 +23,14 @@ OUTPUT_DIR="output"
 LOCAL_FLAG="--local"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-DIRECTION="${1:-}"
+SUBJECT_NAME="${1:-}"
+DIRECTION="${2:-}"
+
+# Build subject name JSON (used by all tools for Notion task tracking)
+SUBJECT_JSON="null"
+if [ -n "$SUBJECT_NAME" ]; then
+  SUBJECT_JSON=$(printf '%s' "$SUBJECT_NAME" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
+fi
 
 # --- Find the latest draft version ---
 LATEST_DRAFT=""
@@ -84,7 +92,7 @@ echo "=== Stage 1: Editorial Session (up to 3 rounds) ==="
 echo ""
 
 RAW_OUTPUT=$(ntn workers exec editorialSession $LOCAL_FLAG \
-  -d "{\"draft\": $DRAFT_JSON, \"transcript\": $TRANSCRIPT_JSON, \"research\": $RESEARCH_JSON, \"direction\": $DIRECTION_JSON}")
+  -d "{\"draft\": $DRAFT_JSON, \"transcript\": $TRANSCRIPT_JSON, \"research\": $RESEARCH_JSON, \"direction\": $DIRECTION_JSON, \"subjectName\": $SUBJECT_JSON}")
 
 # --- Split output into draft and session log ---
 # Extract content between XML-style markers
@@ -152,7 +160,7 @@ else
   REPORT_JSON=$(printf '%s' "$VALIDATION_REPORT" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')
 
   ntn workers exec mechanicalClean $LOCAL_FLAG \
-    -d "{\"draft\": $REVISED_JSON, \"violationReport\": $REPORT_JSON}" \
+    -d "{\"draft\": $REVISED_JSON, \"violationReport\": $REPORT_JSON, \"subjectName\": $SUBJECT_JSON}" \
     > "$NEXT_DRAFT"
   python3 prettify-files.py "$NEXT_DRAFT"
 
@@ -178,11 +186,11 @@ echo "Draft:       $NEXT_DRAFT"
 echo "Session log: $SESSION_LOG"
 echo ""
 echo "To run another editorial session:"
-echo "  ./pipeline-editorial.sh \"focus on opening and quote selection\""
+echo "  ./pipeline-editorial.sh${SUBJECT_NAME:+ \"$SUBJECT_NAME\"} \"focus on opening and quote selection\""
 echo ""
 echo "To do a targeted revision instead:"
-echo "  Update $OUTPUT_DIR/draft-feedback.md, then: ./pipeline-revise.sh"
+echo "  Update $OUTPUT_DIR/draft-feedback.md, then: ./pipeline-revise.sh${SUBJECT_NAME:+ \"$SUBJECT_NAME\"}"
 echo ""
 echo "When finalized: cp $NEXT_DRAFT $OUTPUT_DIR/04-draft.md"
-echo "Then: ./pipeline-post.sh [subject_name] [subject_role]"
+echo "Then: ./pipeline-post.sh${SUBJECT_NAME:+ \"$SUBJECT_NAME\"} [subject_role]"
 echo "============================================"
