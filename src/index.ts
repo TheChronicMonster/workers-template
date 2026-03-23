@@ -13,6 +13,7 @@ import {
 } from "./prompts/personas.js";
 import { SOCIAL_POSTS_SYSTEM } from "./prompts/social-personas.js";
 import { WRITING_RULES } from "./lib/writing-rules.js";
+import { withNotionSave } from "./lib/notion-helpers.js";
 
 const worker = new Worker();
 export default worker;
@@ -32,8 +33,14 @@ worker.tool("pullTranscript", {
 				"Fireflies transcript ID. If omitted, fetches the most recent transcript.",
 			)
 			.nullable(),
+		subjectName: j
+			.string()
+			.describe(
+				"Subject/codename for the blog. If provided, saves the transcript to the Notion task board.",
+			)
+			.nullable(),
 	}),
-	execute: async ({ transcriptId }) => {
+	execute: async ({ transcriptId, subjectName }, { notion }) => {
 		const apiKey = process.env.FIREFLIES_API_KEY;
 		if (!apiKey) {
 			return "Error: FIREFLIES_API_KEY not configured. Set it with `ntn workers env set FIREFLIES_API_KEY <key>`.";
@@ -123,7 +130,7 @@ worker.tool("pullTranscript", {
 
 		const durationMin = Math.round((t.duration || 0) / 60);
 
-		return [
+		const result = [
 			`# ${t.title}`,
 			`Date: ${t.date} | Duration: ${durationMin} min | ID: ${t.id}`,
 			t.summary
@@ -132,6 +139,13 @@ worker.tool("pullTranscript", {
 			`\n## Transcript\n`,
 			formattedSentences,
 		].join("\n");
+
+		return await withNotionSave(
+			notion,
+			subjectName,
+			`Transcript: ${t.title}`,
+			result,
+		);
 	},
 });
 
@@ -158,7 +172,7 @@ worker.tool("processTranscript", {
 			.describe("Name of the primary subject/interviewee.")
 			.nullable(),
 	}),
-	execute: async ({ transcript, blogType, subjectName }) => {
+	execute: async ({ transcript, blogType, subjectName }, { notion }) => {
 		const userMessage = [
 			`BLOG TYPE: ${blogType || "Interview"}`,
 			subjectName ? `SUBJECT: ${subjectName}` : "",
@@ -168,9 +182,16 @@ worker.tool("processTranscript", {
 			.filter(Boolean)
 			.join("\n");
 
-		return await callClaude(RESEARCHER_SYSTEM, [
+		const result = await callClaude(RESEARCHER_SYSTEM, [
 			{ role: "user", content: userMessage },
 		]);
+
+		return await withNotionSave(
+			notion,
+			subjectName,
+			"Research & Analysis",
+			result,
+		);
 	},
 });
 
@@ -209,7 +230,7 @@ worker.tool("generateDraft", {
 			)
 			.nullable(),
 	}),
-	execute: async ({ transcript, outline, subjectName, blogType, ctaFocus }) => {
+	execute: async ({ transcript, outline, subjectName, blogType, ctaFocus }, { notion }) => {
 		const type = blogType || "Interview";
 		const subject = subjectName || "the subject";
 		const cta =
@@ -295,10 +316,17 @@ worker.tool("generateDraft", {
 		]);
 		stageLog.push("Stage 5 (Final Editor): complete");
 
-		return [
+		const result = [
 			finalPost,
 			`\n\n---\n## Pipeline Log\n${stageLog.join("\n")}`,
 		].join("");
+
+		return await withNotionSave(
+			notion,
+			subjectName,
+			"Blog Draft",
+			result,
+		);
 	},
 });
 
@@ -314,8 +342,14 @@ worker.tool("prepWorkfront", {
 		blogPost: j
 			.string()
 			.describe("The final approved blog post content."),
+		subjectName: j
+			.string()
+			.describe(
+				"Subject/codename for the blog. If provided, saves the Workfront package to the Notion task board.",
+			)
+			.nullable(),
 	}),
-	execute: async ({ blogPost }) => {
+	execute: async ({ blogPost, subjectName }, { notion }) => {
 		const systemPrompt = `You are a content strategist preparing a blog submission package for Workfront.
 
 Your job: create the metadata that surrounds the blog on Dell's website. This is NOT social media — these are the teasers that appear on the blog listing page to drive clicks into the full article.
@@ -351,12 +385,19 @@ OUTPUT FORMAT:
 **Primary:** [definition + relevance rationale]
 **Secondary:** [definition + relevance rationale]`;
 
-		return await callClaude(systemPrompt, [
+		const result = await callClaude(systemPrompt, [
 			{
 				role: "user",
 				content: `## FINAL BLOG POST\n\n${blogPost}\n\nGenerate the Workfront submission package.`,
 			},
 		]);
+
+		return await withNotionSave(
+			notion,
+			subjectName,
+			"Workfront Package",
+			result,
+		);
 	},
 });
 
@@ -385,7 +426,7 @@ worker.tool("generateSocialPosts", {
 			)
 			.nullable(),
 	}),
-	execute: async ({ blogPost, subjectName, subjectRole }) => {
+	execute: async ({ blogPost, subjectName, subjectRole }, { notion }) => {
 		const contextLines = [
 			`## FINAL BLOG POST\n\n${blogPost}`,
 			subjectName ? `\nSME Name: ${subjectName}` : "",
@@ -395,9 +436,16 @@ worker.tool("generateSocialPosts", {
 			.filter(Boolean)
 			.join("\n");
 
-		return await callClaude(SOCIAL_POSTS_SYSTEM, [
+		const result = await callClaude(SOCIAL_POSTS_SYSTEM, [
 			{ role: "user", content: contextLines },
 		]);
+
+		return await withNotionSave(
+			notion,
+			subjectName,
+			"Social Media Posts",
+			result,
+		);
 	},
 });
 
@@ -427,8 +475,14 @@ worker.tool("researchSME", {
 				"Optional: any additional context about the SME (bio, LinkedIn summary, etc.).",
 			)
 			.nullable(),
+		subjectName: j
+			.string()
+			.describe(
+				"Blog codename for Notion task tracking. Defaults to smeName if omitted.",
+			)
+			.nullable(),
 	}),
-	execute: async ({ smeName, smeRole, transcript, additionalContext }) => {
+	execute: async ({ smeName, smeRole, transcript, additionalContext, subjectName }, { notion }) => {
 		const systemPrompt = `You are a research analyst preparing a subject matter expert briefing for a blog writer.
 
 Your goal: Create a concise but rich profile that helps a writer craft an authentic, compelling story about this person. Focus on:
@@ -460,9 +514,16 @@ If working from a transcript, pay attention to:
 			.filter(Boolean)
 			.join("\n");
 
-		return await callClaude(systemPrompt, [
+		const result = await callClaude(systemPrompt, [
 			{ role: "user", content: userMessage },
 		]);
+
+		return await withNotionSave(
+			notion,
+			subjectName || smeName,
+			`SME Briefing: ${smeName}`,
+			result,
+		);
 	},
 });
 
@@ -487,8 +548,14 @@ worker.tool("reviseDraft", {
 				"Original transcript for quote verification. Include if feedback involves quotes.",
 			)
 			.nullable(),
+		subjectName: j
+			.string()
+			.describe(
+				"Subject/codename for the blog. If provided, saves the revised draft to the Notion task board.",
+			)
+			.nullable(),
 	}),
-	execute: async ({ draft, feedback, transcript }) => {
+	execute: async ({ draft, feedback, transcript, subjectName }, { notion }) => {
 		const userMessage = [
 			`## CURRENT DRAFT\n\n${draft}`,
 			`\n## REVISION NOTES FROM EDITOR\n\n${feedback}`,
@@ -500,9 +567,16 @@ worker.tool("reviseDraft", {
 			.filter(Boolean)
 			.join("\n");
 
-		return await callClaude(REVISION_EDITOR_SYSTEM, [
+		const result = await callClaude(REVISION_EDITOR_SYSTEM, [
 			{ role: "user", content: userMessage },
 		]);
+
+		return await withNotionSave(
+			notion,
+			subjectName,
+			"Revised Draft",
+			result,
+		);
 	},
 });
 
@@ -523,8 +597,14 @@ worker.tool("mechanicalClean", {
 			.describe(
 				"The validation report from validate-draft.py listing specific violations to fix.",
 			),
+		subjectName: j
+			.string()
+			.describe(
+				"Subject/codename for the blog. If provided, saves the cleaned draft to the Notion task board.",
+			)
+			.nullable(),
 	}),
-	execute: async ({ draft, violationReport }) => {
+	execute: async ({ draft, violationReport, subjectName }, { notion }) => {
 		const cleanPrompt = [
 			`## DRAFT TO CLEAN\n\n${draft}`,
 			`\n## VIOLATIONS DETECTED BY AUTOMATED VALIDATOR\n\nThe following violations were found by deterministic Python checks. These are FACTS, not suggestions — each one is a confirmed rule violation that must be fixed.\n\n${violationReport}`,
@@ -532,9 +612,16 @@ worker.tool("mechanicalClean", {
 			`Output the complete cleaned blog post, then "---\\nMechanical Clean Notes:" listing every change made.`,
 		].join("\n");
 
-		return await callClaude(MECHANICAL_EDITOR_SYSTEM, [
+		const result = await callClaude(MECHANICAL_EDITOR_SYSTEM, [
 			{ role: "user", content: cleanPrompt },
 		]);
+
+		return await withNotionSave(
+			notion,
+			subjectName,
+			"Mechanical Clean",
+			result,
+		);
 	},
 });
 
@@ -570,8 +657,14 @@ worker.tool("editorialSession", {
 				"Optional initial direction or focus areas for the editor. E.g., 'Focus on strengthening the opening and checking for marketing drift.'",
 			)
 			.nullable(),
+		subjectName: j
+			.string()
+			.describe(
+				"Subject/codename for the blog. If provided, saves the editorial session output to the Notion task board.",
+			)
+			.nullable(),
 	}),
-	execute: async ({ draft, transcript, research, direction }) => {
+	execute: async ({ draft, transcript, research, direction, subjectName }, { notion }) => {
 		const MAX_ROUNDS = 3;
 
 		// Conversation histories — each agent sees its own thread
@@ -685,7 +778,7 @@ worker.tool("editorialSession", {
 		}
 
 		// Output: draft and session log in machine-parseable sections
-		return [
+		const result = [
 			"<EDITORIAL_SESSION_DRAFT>",
 			currentDraft,
 			"</EDITORIAL_SESSION_DRAFT>",
@@ -693,5 +786,12 @@ worker.tool("editorialSession", {
 			sessionLog,
 			"</EDITORIAL_SESSION_LOG>",
 		].join("\n");
+
+		return await withNotionSave(
+			notion,
+			subjectName,
+			"Editorial Session",
+			result,
+		);
 	},
 });
