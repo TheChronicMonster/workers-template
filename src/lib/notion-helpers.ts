@@ -141,6 +141,7 @@ export async function withNotionSave(
 	options?: { firefliesUrl?: string },
 ): Promise<string> {
 	if (!subjectName) return content;
+	if (!process.env.NOTION_API_TOKEN) return content;
 
 	try {
 		const { id, created } = await findOrCreateBlogTask(
